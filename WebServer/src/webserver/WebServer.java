@@ -17,6 +17,7 @@ public class WebServer {
 
     private int port;
     private String rootDir;
+    //private Request request;
 
     public WebServer(int port, String rootDir) {
         this.port = port;
@@ -24,33 +25,41 @@ public class WebServer {
     }
 
     public void start() throws IOException {
+        
         ServerSocket serverSocket = new ServerSocket(port);
         while (true)
         {
-            Socket con = serverSocket.accept();
-            InputStream is = con.getInputStream();
+            Socket conn = serverSocket.accept();
+            InputStream is = conn.getInputStream();
             
-            try
+            try 
             {
-                Request req = Request.parse(is);
-            } catch (MessageFormatException ex)
-            {          
-            
+               Request request = Request.parse(is);
+               
+               OutputStream os = conn.getOutputStream();
+                if("GET".equals(request.getMethod()))
+                {
+                    Response msg = new Response(200);
+                    msg.write(os);
+                    os.write("The request has been successful \n".getBytes());
+                }
+                else
+                {
+                    Response notImplMsg = new Response(501);
+                    notImplMsg.write(os);
+                    os.write("The method needed for the request has not been implemented \n".getBytes());
+                }
             }
+            catch (MessageFormatException ex)
+            {
+                
+            }
+//          System.out.println(request.getMethod());
             
-            OutputStream os = con.getOutputStream();
             
-            Response msg = new Response(200);
-            msg.write(os);
-            os.write("Hello World \n".getBytes());
             
-            con.close();
+            conn.close();
         }
-    }
-    
-    public void getMethod()
-    {
-        
     }
 
     public static void main(String[] args) throws IOException {
