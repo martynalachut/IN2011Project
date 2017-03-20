@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.*;
 import java.nio.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Date;
@@ -33,20 +34,38 @@ public class WebServer {
         {
             Socket conn = serverSocket.accept();
             InputStream is = conn.getInputStream();
-            Path myPath = Paths.get("C:");
+            
             
             try 
             {
                os = conn.getOutputStream();
                Request request = Request.parse(is);
-                
                
                 if("GET".equals(request.getMethod()))
                 {
+                    Path myPath = Paths.get(request.getURI());
+                    is = Files.newInputStream(myPath);
+                    
+                    byte[] buffer = new byte[1024];
+                    int len = is.read(buffer);
+                    
+                    while(len != -1)
+                    {
+                        os.write(buffer, 0, len);
+                        len = is.read(buffer);
+                    }
+                    /*Response msg = new Response(200);
+                    msg.write(os);
+                    os.write("The request has been successful \n".getBytes());*/
+                   /* Path myPath = Paths.get(request.getURI());
+                    is = Files.newInputStream(myPath);
+                    os = Files.newOutputStream(myPath);
                     Response msg = new Response(200);
                     msg.write(os);
-                    os.write("The request has been successful \n".getBytes());
-                    request.getURI();
+                    //os.write();*/
+                    
+                    //is.read();
+                   // System.out.println(is.read());
                 }
                 else
                 {
