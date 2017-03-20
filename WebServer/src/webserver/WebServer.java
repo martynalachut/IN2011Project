@@ -10,6 +10,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.*;
 import java.nio.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Date;
 import org.apache.http.client.utils.DateUtils;
 
@@ -17,7 +19,7 @@ public class WebServer {
 
     private int port;
     private String rootDir;
-    //private Request request;
+    private OutputStream os;
 
     public WebServer(int port, String rootDir) {
         this.port = port;
@@ -31,17 +33,20 @@ public class WebServer {
         {
             Socket conn = serverSocket.accept();
             InputStream is = conn.getInputStream();
+            Path myPath = Paths.get("C:");
             
             try 
             {
+               os = conn.getOutputStream();
                Request request = Request.parse(is);
+                
                
-               OutputStream os = conn.getOutputStream();
                 if("GET".equals(request.getMethod()))
                 {
                     Response msg = new Response(200);
                     msg.write(os);
                     os.write("The request has been successful \n".getBytes());
+                    request.getURI();
                 }
                 else
                 {
@@ -52,7 +57,9 @@ public class WebServer {
             }
             catch (MessageFormatException ex)
             {
-                
+                Response badMsg = new Response(400);
+                badMsg.write(os);
+                os.write("Bad request \n".getBytes());            
             }           
             
             conn.close();
