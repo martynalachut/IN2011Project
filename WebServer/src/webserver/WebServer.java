@@ -28,13 +28,12 @@ public class WebServer {
     }
 
     public void start() throws IOException {
-        
+                
         ServerSocket serverSocket = new ServerSocket(port);
         while (true)
         {
             Socket conn = serverSocket.accept();
             InputStream is = conn.getInputStream();
-            
             
             try 
             {
@@ -42,12 +41,20 @@ public class WebServer {
                Request request = Request.parse(is);
                
                 if("GET".equals(request.getMethod()))
-                {                    
+                {
+                    if (request.getVersion().equals("1.1"))
+                    {
                     String myURI = request.getURI();
                     String ps = rootDir + myURI;
                     Path myPath = Paths.get(ps).toAbsolutePath().normalize();
-                    is = Files.newInputStream(myPath);
                     
+                      if (myURI.contains("..") || myURI.contains(".")){
+                        Response forbidMsg = new Response (403);
+                        forbidMsg.write(os);
+                        os.write("Forbidden access \n".getBytes());
+                    }
+                      is = Files.newInputStream(myPath);
+                      
                     byte[] buffer = new byte[1024];
                     int length = is.read(buffer);
                     
@@ -55,6 +62,13 @@ public class WebServer {
                     {
                         os.write(buffer, 0, length);
                         length = is.read(buffer);
+                    }
+                  }
+                    else
+                    {
+                        Response invalidVrs = new Response (505);
+                        invalidVrs.write(os);
+                        os.write("Requested http version is not supported \n".getBytes());
                     }
                 }
                 else
@@ -69,16 +83,22 @@ public class WebServer {
                 Response badMsg = new Response(400);
                 badMsg.write(os);
                 os.write("Bad request \n".getBytes());            
-            }
+            }   
             catch (NoSuchFileException noFileEx)
             {
                 Response notFoundMsg = new Response(404);
                 notFoundMsg.write(os);
                 os.write("The file could not be found \n".getBytes());
-            }            
+            }
+            catch (RuntimeException svrError)
+            {
+                Response svrErrorMsg = new Response(500);
+                svrErrorMsg.write(os);
+                os.write("Internal server error occurred \n".getBytes());
+            }
             conn.close();
-        }
     }
+}
 
     public static void main(String[] args) throws IOException {
         String usage = "Usage: java webserver.WebServer <port-number> <root-dir>";
