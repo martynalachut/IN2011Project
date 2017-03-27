@@ -9,8 +9,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.*;
-import java.nio.*;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Date;
@@ -42,30 +42,20 @@ public class WebServer {
                Request request = Request.parse(is);
                
                 if("GET".equals(request.getMethod()))
-                {
-                    Path myPath = Paths.get(request.getURI());
+                {                    
+                    String myURI = request.getURI();
+                    String ps = rootDir + myURI;
+                    Path myPath = Paths.get(ps).toAbsolutePath().normalize();
                     is = Files.newInputStream(myPath);
                     
                     byte[] buffer = new byte[1024];
-                    int len = is.read(buffer);
+                    int length = is.read(buffer);
                     
-                    while(len != -1)
+                    while(length != -1)
                     {
-                        os.write(buffer, 0, len);
-                        len = is.read(buffer);
+                        os.write(buffer, 0, length);
+                        length = is.read(buffer);
                     }
-                    /*Response msg = new Response(200);
-                    msg.write(os);
-                    os.write("The request has been successful \n".getBytes());*/
-                   /* Path myPath = Paths.get(request.getURI());
-                    is = Files.newInputStream(myPath);
-                    os = Files.newOutputStream(myPath);
-                    Response msg = new Response(200);
-                    msg.write(os);
-                    //os.write();*/
-                    
-                    //is.read();
-                   // System.out.println(is.read());
                 }
                 else
                 {
@@ -74,13 +64,18 @@ public class WebServer {
                     os.write("The method needed for the request has not been implemented \n".getBytes());
                 }
             }
-            catch (MessageFormatException ex)
+            catch (MessageFormatException msgFormatEx)
             {
                 Response badMsg = new Response(400);
                 badMsg.write(os);
                 os.write("Bad request \n".getBytes());            
-            }           
-            
+            }
+            catch (NoSuchFileException noFileEx)
+            {
+                Response notFoundMsg = new Response(404);
+                notFoundMsg.write(os);
+                os.write("The file could not be found \n".getBytes());
+            }            
             conn.close();
         }
     }
