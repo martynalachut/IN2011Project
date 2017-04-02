@@ -12,7 +12,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Calendar;
-import java.util.Date;
 import org.apache.http.client.utils.DateUtils;
 
 /*
@@ -62,7 +61,6 @@ final class MultiThreadedServer implements Runnable
                 System.out.println(e);
             } 
         }
-        
     }
     
     public void start() throws IOException
@@ -102,33 +100,25 @@ final class MultiThreadedServer implements Runnable
                         //don't run this code if 304
                         if(flag == 0)
                         {
-                        //send OK HTTP response + last-modified header
-                        Response okResponse = new Response(200);
-                        addLastModified(okResponse);
-                        okResponse.write(os);
-                        os.write("Valid request \n".getBytes());
-                        
-                        is = Files.newInputStream(myPath);
-                       //Allocates the contents to a file (regardless of its type)
-                       //to a byte array which can be read later.
-                        byte[] buffer = new byte[1024];
-                        int length = is.read(buffer);
-                        
-                        while(length != -1)
-                        {
-                            os.write(buffer, 0, length);
-                            length = is.read(buffer);
+                            //send OK HTTP response + last-modified header
+                            Response okResponse = new Response(200);
+                            addLastModified(okResponse);
+                            okResponse.write(os);
+                            os.write("Valid request \n".getBytes());
+
+                            is = Files.newInputStream(myPath);
+                           //Allocates the contents to a file (regardless of its type)
+                           //to a byte array which can be read later.
+                            byte[] buffer = new byte[1024];
+                            int length = is.read(buffer);
+
+                            while(length != -1)
+                            {
+                                os.write(buffer, 0, length);
+                                length = is.read(buffer);
+                            }
                         }
-                        }
-                        }
-                        /*else
-                        {
-                            Response notModified = new Response(304);
-                            notModified.write(os);
-                            os.write("The requested file has not been modified\n".getBytes());
-                        }*/
-                       
-                    
+                    }
                     else
                     {
                         Response invalidVrs = new Response (505);
@@ -174,16 +164,9 @@ final class MultiThreadedServer implements Runnable
     
     public void addLastModified(Response response) throws IOException
     {
-        //automatically add Last-Modified header to response
-        //Date today = new Date();
-        //Calendar calendar = Calendar.getInstance();
-        //calendar.setTime(today);
-        //calendar.add(Calendar.DAY_OF_YEAR, -1);
-        //Date yesterday = calendar.getTime();
-        //String yesterdayDate = DateUtils.formatDate(yesterday, DateUtils.PATTERN_RFC1123);
-        //response.addHeaderField("Last-Modified", yesterdayDate);
         response.addHeaderField("Last-Modified", getLatestModificationTime());
     }
+    
     public boolean isHeaderValueNull(Request request)
     {
         if(request.getHeaderFieldValue("If-Modified-Since") == null)
@@ -192,28 +175,13 @@ final class MultiThreadedServer implements Runnable
         }
         return false;
     }
+    
     public String getLatestModificationTime() throws IOException
     {
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(Files.getLastModifiedTime(this.path).toMillis());
         return DateUtils.formatDate(calendar.getTime(), DateUtils.PATTERN_RFC1123);
     }
-    // dont think this is used
-    public boolean isModifiedHeaderRequired(Request request) throws IOException
-    {
-        if(request.getHeaderFieldValue("If-Modified-Since") != null)
-        {
-            return DateUtils.parseDate(getLatestModificationTime()).after(DateUtils.parseDate(request.getHeaderFieldValue("If-Modified-Since")));            
-        }
-        return true;
-    }
-    /*public void setModified() throws IOException
-    {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTimeInMillis(Files.getLastModifiedTime(path).toMillis());
-        os.write(("Last-modified: " + getLatestModificationTime()).getBytes());
-    }*/
-    
 }
 
 public final class WebServer
@@ -235,9 +203,7 @@ public final class WebServer
             throw new Error(usage + " " + "<port-number> must be an integer");
         }
         String rootDir = args[1];
-        //MultiThreadedServer server = new MultiThreadedServer(port, rootDir);
         Thread thread = new Thread(new MultiThreadedServer(port, rootDir));
         thread.start();
-        //server.start();
     }
 }
