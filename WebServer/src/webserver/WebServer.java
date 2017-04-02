@@ -15,6 +15,14 @@ import java.util.Calendar;
 import java.util.Date;
 import org.apache.http.client.utils.DateUtils;
 
+/*
+This is the coursework part 2 submission by Martyna Lachut, Vladyslav Atamanyuk
+and Daniel Lugo Pino.
+
+The advanced feature we've chosen to do is the 2.1 Support for Client Side Cach-
+ing.
+*/
+
 final class MultiThreadedServer implements Runnable
 {
     private int port;
@@ -23,6 +31,7 @@ final class MultiThreadedServer implements Runnable
     private Thread runningThread;
     private boolean stopServer;
     private Path path;
+    private int flag;
     
     public MultiThreadedServer(int port, String rootDir)
     {
@@ -30,8 +39,12 @@ final class MultiThreadedServer implements Runnable
         this.rootDir = rootDir;
         this.runningThread = null;
         this.stopServer = false;
+        this.flag = 0;
     }
     
+    //This method is in charge of the multi-threading of the HTTP Server.
+    //It allows for multiple Get Requests be received at the same time, without
+    // having to wait for a request to be processed.
     public void run()
     {
         synchronized(this)
@@ -66,7 +79,6 @@ final class MultiThreadedServer implements Runnable
             {
                 os = conn.getOutputStream();
                 Request request = Request.parse(is);
-                addIfModified(request);
                 
                 if("GET".equals(request.getMethod()))
                 {
@@ -77,15 +89,28 @@ final class MultiThreadedServer implements Runnable
                         Path myPath = Paths.get(ps).toAbsolutePath().normalize();
                         this.path = myPath;
                         
-                        /*if (myURI.contains("..") || myURI.contains("."))
+                        if(isHeaderValueNull(request) == false)
                         {
-                            Response forbidMsg = new Response (403);
-                            forbidMsg.write(os);
-                            os.write("Forbidden access ".getBytes());
-                        }*/
+                            if(getLatestModificationTime().compareTo(request.getHeaderFieldValue("If-Modified-Since")) < 0);
+                            {
+                                Response notModified = new Response(304);
+                                notModified.write(os);
+                                os.write("The requested file has not been modified \n".getBytes());
+                                flag = 1;
+                            }
+                        }
+                        //don't run this code if 304
+                        if(flag == 0)
+                        {
+                        //send OK HTTP response + last-modified header
+                        Response okResponse = new Response(200);
+                        addLastModified(okResponse);
+                        okResponse.write(os);
+                        os.write("Valid request \n".getBytes());
                         
                         is = Files.newInputStream(myPath);
-                        
+                       //Allocates the contents to a file (regardless of its type)
+                       //to a byte array which can be read later.
                         byte[] buffer = new byte[1024];
                         int length = is.read(buffer);
                         
@@ -94,13 +119,16 @@ final class MultiThreadedServer implements Runnable
                             os.write(buffer, 0, length);
                             length = is.read(buffer);
                         }
-                        if (getLatestModificationDate().compareTo(request.getHeaderFieldValue("If-Modified-Since")) > 0 )
+                        }
+                        }
+                        /*else
                         {
                             Response notModified = new Response(304);
                             notModified.write(os);
                             os.write("The requested file has not been modified\n".getBytes());
-                        }
-                    }
+                        }*/
+                       
+                    
                     else
                     {
                         Response invalidVrs = new Response (505);
@@ -144,37 +172,47 @@ final class MultiThreadedServer implements Runnable
         }
     }
     
-    public void addIfModified(Request request)
+    public void addLastModified(Response response) throws IOException
     {
-        //automatically add If-Modified header to every request 
-        Date today = new Date();
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(today);
-        calendar.add(Calendar.DAY_OF_YEAR, -1);
-        Date yesterday = calendar.getTime();
-        String yesterdayDate = DateUtils.formatDate(yesterday, DateUtils.PATTERN_RFC1123);
-        request.addHeaderField("If-Modified-Since", yesterdayDate);
+        //automatically add Last-Modified header to response
+        //Date today = new Date();
+        //Calendar calendar = Calendar.getInstance();
+        //calendar.setTime(today);
+        //calendar.add(Calendar.DAY_OF_YEAR, -1);
+        //Date yesterday = calendar.getTime();
+        //String yesterdayDate = DateUtils.formatDate(yesterday, DateUtils.PATTERN_RFC1123);
+        //response.addHeaderField("Last-Modified", yesterdayDate);
+        response.addHeaderField("Last-Modified", getLatestModificationTime());
     }
-    public String getLatestModificationDate() throws IOException
+    public boolean isHeaderValueNull(Request request)
+    {
+        if(request.getHeaderFieldValue("If-Modified-Since") == null)
+        {
+            return true;
+        }
+        return false;
+    }
+    public String getLatestModificationTime() throws IOException
     {
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(Files.getLastModifiedTime(this.path).toMillis());
         return DateUtils.formatDate(calendar.getTime(), DateUtils.PATTERN_RFC1123);
     }
-    public boolean isModifiedRequired(Request request) throws IOException
+    // dont think this is used
+    public boolean isModifiedHeaderRequired(Request request) throws IOException
     {
         if(request.getHeaderFieldValue("If-Modified-Since") != null)
         {
-            return DateUtils.parseDate(getLatestModificationDate()).after(DateUtils.parseDate(request.getHeaderFieldValue("If-Modified-Since")));            
+            return DateUtils.parseDate(getLatestModificationTime()).after(DateUtils.parseDate(request.getHeaderFieldValue("If-Modified-Since")));            
         }
         return true;
     }
-    public void setModified() throws IOException
+    /*public void setModified() throws IOException
     {
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(Files.getLastModifiedTime(path).toMillis());
-        os.write(("Last-modified: " + getLatestModificationDate()).getBytes());
-    }
+        os.write(("Last-modified: " + getLatestModificationTime()).getBytes());
+    }*/
     
 }
 
